@@ -48,6 +48,7 @@ Available on:
 Web server is launched on port 8080.
 
 As a pet camera, Open [http://127.0.0.1:8080/index.html?camera=true](http://127.0.0.1:8080/index.html?camera=true)
+
 As a viewer, Open [http://127.0.0.1:8080/index.html?camera=false](http://127.0.0.1:8080/index.html?camera=false)
 
 When you open the web page, you will be asked for the application id and secret.
