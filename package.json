@@ -1,8 +1,8 @@
 {
-  "name": "p2p-room",
+  "name": "pet-camera",
   "version": "1.0.0",
-  "description": "",
-  "author": "",
+  "description": "Internet pet camera using SkyWay",
+  "author": "komasayuki",
   "scripts": {
     "build": "parcel build ./src/index.html --public-url ./",
     "dev": "parcel ./src/index.html",

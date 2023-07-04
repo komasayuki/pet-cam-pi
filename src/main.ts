@@ -7,134 +7,188 @@ import {
   uuidV4,
 } from '@skyway-sdk/room';
 
-import { appId, secret } from '../../../env';
 
-const token = new SkyWayAuthToken({
-  jti: uuidV4(),
-  iat: nowInSec(),
-  exp: nowInSec() + 60 * 60 * 24,
-  scope: {
-    app: {
-      id: appId,
-      turn: true,
-      actions: ['read'],
-      channels: [
-        {
-          id: '*',
-          name: '*',
-          actions: ['write'],
-          members: [
-            {
-              id: '*',
-              name: '*',
-              actions: ['write'],
-              publication: {
-                actions: ['write'],
-              },
-              subscription: {
-                actions: ['write'],
-              },
-            },
-          ],
-          sfuBots: [
-            {
-              actions: ['write'],
-              forwardings: [
-                {
-                  actions: ['write'],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  },
-}).encode(secret);
 
-(async () => {
-  const localVideo = document.getElementById('local-video') as HTMLVideoElement;
-  const buttonArea = document.getElementById('button-area');
-  const remoteMediaArea = document.getElementById('remote-media-area');
-  const channelNameInput = document.getElementById(
-    'channel-name'
-  ) as HTMLInputElement;
-  const dataStreamInput = document.getElementById(
-    'data-stream'
-  ) as HTMLInputElement;
-  const myId = document.getElementById('my-id');
-  const joinButton = document.getElementById('join');
-  const writeButton = document.getElementById('write');
+const createContext = async (token:string, persistent:boolean):Promise<SkyWayContext> => {
 
-  const { audio, video } =
-    await SkyWayStreamFactory.createMicrophoneAudioAndCameraStream();
-  video.attach(localVideo);
-  await localVideo.play();
+  let retryCount = 0;
+  while(true){
+    try {
+      return await SkyWayContext.Create(token);
+    }
+    catch (e) {
+      document.getElementById('status').innerText = 'Connecting SkyWay failed. Check console logs.';
 
-  const data = await SkyWayStreamFactory.createDataStream();
-  writeButton.onclick = () => {
-    data.write(dataStreamInput.value);
-    dataStreamInput.value = '';
-  };
+      if (persistent) {
+        retryCount++;
+        const waitMilliSeconds = 1000 * Math.min(60, retryCount * 5);
+        await new Promise(resolve => setTimeout(resolve, waitMilliSeconds))
+        continue;
+      }
 
-  joinButton.onclick = async () => {
-    if (channelNameInput.value === '') return;
+      throw e;
+    }
+  }
+};
 
-    const context = await SkyWayContext.Create(token);
-    const channel = await SkyWayRoom.FindOrCreate(context, {
-      type: 'p2p',
-      name: channelNameInput.value,
-    });
-    const me = await channel.join();
 
-    myId.textContent = me.id;
+let cameraIndex = 0;
+
+const handleContext = async (context: SkyWayContext, isCamera:boolean) => {
+
+  const channel = await SkyWayRoom.FindOrCreate(context, {
+    type: 'p2p',
+    name: 'my-lovely-pets',
+  });
+  const me = await channel.join();
+
+  if (isCamera) {
+
+    const cameraDevices = await SkyWayStreamFactory.enumerateInputVideoDevices();
+    if (cameraDevices.length === 0) {
+      document.getElementById('status').innerText = 'No camera available.';
+      return;
+    }
+
+    const videoConfig = { deviceId: cameraDevices[0].id, height: 1280, width: 720, frameRate: 15 };
+
+    const { audio, video } =
+      await SkyWayStreamFactory.createMicrophoneAudioAndCameraStream({
+        video: videoConfig,
+      });
+    const elm = document.getElementById('video') as HTMLVideoElement;
+    video.attach(elm);
+    await elm.play();
 
     await me.publish(audio);
-    await me.publish(video);
-    await me.publish(data);
+    const publication = await me.publish(video);
 
-    const subscribeAndAttach = (publication) => {
+    const button = document.createElement('button');
+    button.id = 'camera-button';
+    button.innerText = `camera: ${cameraDevices[cameraIndex].label}`;
+    document.getElementById('status').appendChild(button);
+
+    button.addEventListener('click', async () => {
+      cameraIndex = (cameraIndex + 1) % cameraDevices.length;
+      videoConfig.deviceId = cameraDevices[cameraIndex].id;
+      button.innerText = `camera: ${cameraDevices[cameraIndex].label}`;
+
+      const video = await SkyWayStreamFactory.createCameraVideoStream(videoConfig);
+      const elm = document.getElementById('video') as HTMLVideoElement;
+      video.attach(elm);
+      await elm.play();
+
+      await publication.replaceStream(video);
+    });
+
+  } else {
+    const subscribeAndAttach = async (publication) => {
       if (publication.publisher.id === me.id) return;
 
-      const subscribeButton = document.createElement('button');
-      subscribeButton.textContent = `${publication.publisher.id}: ${publication.contentType}`;
-      buttonArea.appendChild(subscribeButton);
+      const { stream } = await me.subscribe(publication.id);
 
-      subscribeButton.onclick = async () => {
-        const { stream } = await me.subscribe(publication.id);
-
-        switch (stream.contentType) {
-          case 'video':
-            {
-              const elm = document.createElement('video');
-              elm.playsInline = true;
-              elm.autoplay = true;
-              stream.attach(elm);
-              remoteMediaArea.appendChild(elm);
-            }
-            break;
-          case 'audio':
-            {
-              const elm = document.createElement('audio');
-              elm.controls = true;
-              elm.autoplay = true;
-              stream.attach(elm);
-              remoteMediaArea.appendChild(elm);
-            }
-            break;
-          case 'data': {
-            const elm = document.createElement('div');
-            remoteMediaArea.appendChild(elm);
-            elm.innerText = 'data\n';
-            stream.onData.add((data) => {
-              elm.innerText += (data as string) + '\n';
-            });
+      switch (stream.contentType) {
+        case 'video':
+          {
+            const elm = document.getElementById('video') as HTMLVideoElement;
+            stream.attach(elm);
+            document.getElementById('status').innerText =
+              'Your lovely pet here!';
           }
-        }
-      };
+          break;
+        case 'audio':
+          {
+            const elm = document.getElementById('audio') as HTMLAudioElement;
+            elm.style.display = 'block';
+            stream.attach(elm);
+          }
+          break;
+      }
     };
 
     channel.publications.forEach(subscribeAndAttach);
     channel.onStreamPublished.add((e) => subscribeAndAttach(e.publication));
-  };
+  }
+};
+
+
+
+
+const addErrorHandler = (context:SkyWayContext, token:string, isCamera:boolean) => {
+  context.onFatalError.add(async () => {
+    context.dispose();
+
+    const newContext = await createContext(token, true);
+    handleContext(newContext, isCamera);
+    addErrorHandler(newContext, token, isCamera);
+  });
+}
+
+const makeAuthToken = (appId:string, secret:string):string => {
+  return new SkyWayAuthToken({
+    jti: uuidV4(),
+    iat: nowInSec(),
+    exp: nowInSec() + 60 * 60 * 24,
+    scope: {
+      app: {
+        id: appId,
+        turn: true,
+        actions: ['read'],
+        channels: [
+          {
+            id: '*',
+            name: '*',
+            actions: ['write'],
+            members: [
+              {
+                id: '*',
+                name: '*',
+                actions: ['write'],
+                publication: {
+                  actions: ['write'],
+                },
+                subscription: {
+                  actions: ['write'],
+                },
+              },
+            ],
+            sfuBots: [
+              {
+                actions: ['write'],
+                forwardings: [
+                  {
+                    actions: ['write'],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    },
+  }).encode(secret);
+}
+
+
+(async () => {
+
+  let appId = new URLSearchParams(window.location.search).get('appId');
+  let secret = new URLSearchParams(window.location.search).get('secret');
+
+  if (!appId) {
+    appId = prompt('Input application ID.');
+  }
+
+  if (!secret) {
+    secret = prompt('Input secret.');
+  }
+
+  const isCamera =
+    new URLSearchParams(window.location.search).get('camera') === 'true';
+
+  const token = makeAuthToken(appId, secret);
+  const context = await createContext(token, false);
+  handleContext(context, isCamera);
+  addErrorHandler(context, token, isCamera);
+
 })();
