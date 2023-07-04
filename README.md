@@ -2,6 +2,8 @@
 
 The world's easiest pet camera that can be viewed from the Internet.
 
+[日本語の説明もあります](https://qiita.com/komasayuki/items/1caef300977efa5d5981)
+
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for testing.
