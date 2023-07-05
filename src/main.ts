@@ -8,7 +8,6 @@ import {
 } from '@skyway-sdk/room';
 
 
-
 const createContext = async (token:string, persistent:boolean):Promise<SkyWayContext> => {
 
   let retryCount = 0;
@@ -34,7 +33,7 @@ const createContext = async (token:string, persistent:boolean):Promise<SkyWayCon
 
 let cameraIndex = 0;
 
-const handleContext = async (context: SkyWayContext, isCamera:boolean) => {
+const handleContext = async (context: SkyWayContext, isCamera:boolean, withAudio:boolean) => {
 
   const channel = await SkyWayRoom.FindOrCreate(context, {
     type: 'p2p',
@@ -50,19 +49,17 @@ const handleContext = async (context: SkyWayContext, isCamera:boolean) => {
       return;
     }
 
-    const videoConfig = { deviceId: cameraDevices[0].id, height: 1280, width: 720, frameRate: 15 };
-
-    const { audio, video } =
-      await SkyWayStreamFactory.createMicrophoneAudioAndCameraStream({
-        video: videoConfig,
-      });
+    const video = await SkyWayStreamFactory.createCameraVideoStream({deviceId: cameraDevices[0].id});
     const elm = document.getElementById('video') as HTMLVideoElement;
     video.attach(elm);
     await elm.play();
-
-    await me.publish(audio);
     const publication = await me.publish(video);
 
+    if (withAudio) {
+      const audio = await SkyWayStreamFactory.createMicrophoneAudioStream();
+      await me.publish(audio);
+    }
+    
     const button = document.createElement('button');
     button.id = 'camera-button';
     button.innerText = `camera: ${cameraDevices[cameraIndex].label}`;
@@ -70,10 +67,9 @@ const handleContext = async (context: SkyWayContext, isCamera:boolean) => {
 
     button.addEventListener('click', async () => {
       cameraIndex = (cameraIndex + 1) % cameraDevices.length;
-      videoConfig.deviceId = cameraDevices[cameraIndex].id;
       button.innerText = `camera: ${cameraDevices[cameraIndex].label}`;
 
-      const video = await SkyWayStreamFactory.createCameraVideoStream(videoConfig);
+      const video = await SkyWayStreamFactory.createCameraVideoStream({deviceId: cameraDevices[cameraIndex].id});
       const elm = document.getElementById('video') as HTMLVideoElement;
       video.attach(elm);
       await elm.play();
@@ -112,15 +108,13 @@ const handleContext = async (context: SkyWayContext, isCamera:boolean) => {
 };
 
 
-
-
-const addErrorHandler = (context:SkyWayContext, token:string, isCamera:boolean) => {
+const addErrorHandler = (context:SkyWayContext, token:string, isCamera:boolean, withAudio:boolean) => {
   context.onFatalError.add(async () => {
     context.dispose();
 
     const newContext = await createContext(token, true);
-    handleContext(newContext, isCamera);
-    addErrorHandler(newContext, token, isCamera);
+    handleContext(newContext, isCamera, withAudio);
+    addErrorHandler(newContext, token, isCamera, withAudio);
   });
 }
 
@@ -186,9 +180,12 @@ const makeAuthToken = (appId:string, secret:string):string => {
   const isCamera =
     new URLSearchParams(window.location.search).get('camera') === 'true';
 
+  const withAudio =
+    new URLSearchParams(window.location.search).get('audio') === 'true';
+
   const token = makeAuthToken(appId, secret);
   const context = await createContext(token, false);
-  handleContext(context, isCamera);
-  addErrorHandler(context, token, isCamera);
+  handleContext(context, isCamera, withAudio);
+  addErrorHandler(context, token, isCamera, withAudio);
 
 })();
