@@ -57,6 +57,19 @@ When you open the web page, you will be asked for the application id and secret.
 Please enter the ones you obtained from SkyWay.
 
 
+### Deploy to GitHub Pages
+
+You can invoke `Deploy to GitHub Pages` GitHub Actions manually.
+Push `Run workflow` of `Deploy to GitHub Pages` in GitHub Actions.
+You can access the web page on GitHub Pages.
+
+Camera side URL:
+https://komasayuki.github.io/pet-cam/index.html?camera=true&audio=true
+
+Viewer side URL:
+https://komasayuki.github.io/pet-cam/index.html?camera=false
+
+
 ## Note
 
 WebRTC is only available on iOS devices from pages hosted over https.
