@@ -19,22 +19,47 @@ app.listen(PORT, function () {
 })
 
 
-
-
-
 const motor = new Gpio(18, {mode: Gpio.OUTPUT});
 
 const PulseWidthMax = 2500;
 const PulseWidthMin = 500;
 
+const makePulseWidth = (anglePercentage:number):number => {
+    return ~~(PulseWidthMin + (PulseWidthMax - PulseWidthMin) * (100-anglePercentage) / 100);
+};
+
+let currentAngle = 40;
+let targetAngle = 50;
 const setServoAngleByPercentage = (anglePercentage:number) => {
-    const pulseWidth = ~~(PulseWidthMin + (PulseWidthMax - PulseWidthMin) * anglePercentage / 100);
-    console.log('set servo angle: ' + anglePercentage + ' pulse width: ' + pulseWidth);
+    console.log('set servo angle target: ' + anglePercentage);
+    targetAngle = anglePercentage;
+    tweenAngle();
+};
+
+const tweenAngle = () => {
+
+    const diff = targetAngle - currentAngle;
+
+    if (Math.abs(diff) < 1) {
+        console.log('servo angle reached: ' + currentAngle);
+        return;
+    }
+
+    if (diff > 0) {
+        currentAngle += 1;
+    }
+    else{
+        currentAngle -= 1;
+    }
+
+    const pulseWidth = makePulseWidth(currentAngle);
     motor.servoWrite(pulseWidth);
+
+    setTimeout(tweenAngle, 100);
 };
 
 
-let currentAngle = 50;
+
 setServoAngleByPercentage(currentAngle);
 
 app.get('/servo', async (req, res) => {
@@ -49,8 +74,8 @@ app.post('/servo', async (req, res) => {
         res.status(400).send('angle is undefined');
         return;
     }
-    currentAngle = Math.max(0, Math.min(100, anglePercentage));
-    setServoAngleByPercentage(currentAngle);
+    anglePercentage = Math.max(0, Math.min(100, anglePercentage));
+    setServoAngleByPercentage(anglePercentage);
     
     res.status(200).send('ok');
 });
