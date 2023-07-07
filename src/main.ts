@@ -243,9 +243,6 @@ let servoAngle = 50;
 
 (async () => {
 
-  servoAngle = await getServoAngle();
-  console.log('current servo angle: ' + servoAngle);
-
   let appId = new URLSearchParams(window.location.search).get('appId');
   let secret = new URLSearchParams(window.location.search).get('secret');
 
@@ -259,6 +256,11 @@ let servoAngle = 50;
 
   const isCamera =
     new URLSearchParams(window.location.search).get('camera') === 'true';
+
+  if (isCamera) {
+    servoAngle = await getServoAngle();
+    console.log('current servo angle: ' + servoAngle);
+  }
 
   const withAudio =
     new URLSearchParams(window.location.search).get('audio') === 'true';
