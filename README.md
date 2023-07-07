@@ -1,6 +1,6 @@
-# Internet Pet Camera using SkyWay
+# Internet Pet Camera for Raspberry pi using SkyWay
 
-The world's easiest pet camera that can be viewed from the Internet.
+The world's easiest pet camera with pan control that can be viewed from the Internet.
 
 [日本語の説明もあります](https://qiita.com/komasayuki/items/1caef300977efa5d5981)
 
@@ -13,11 +13,23 @@ These instructions will get you a copy of the project up and running on your loc
 A SkyWay account is required.
 You can [create an account](https://console.skyway.ntt.com/signup/) for free.
 
+Hardware
+
+- Raspberry Pi
+- USB Camera
+- Servo
+
+Wiring
+
+- Pi 2pin (5V Power) -> Servo VCC
+- Pi 6pin (Ground) -> Servo GND
+- Pi 12pin (GPIO 18) -> Servo SIGNAL
+
 Software
 
 - [node, npm](https://nodejs.org/en/download)
-- [npx](https://github.com/npm/npx)
-- [http-server](https://github.com/http-party/http-server)
+
+
 
 ### Create SkyWay project and application
 
@@ -39,22 +51,26 @@ Software
 ```
 
 
-### Run web server and open
+### Run pet-cam-pi server on Raspberry Pi
 
 ```bash
-% npx http-server ./dist
-Available on:
-  http://127.0.0.1:8080
+# clone pet-cam repository from GitHub
+% git clone https://github.com/komasayuki/pet-cam-pi
+
+% cd pet-cam-pi/server
+
+# first time only
+% npm install
+
+# launch pet-cam-pi server on port 8080
+% sudo npm start
 ```
 
-Web server is launched on port 8080.
+Now you can open Camera web page by Raspberry pi's web browser.
 
-As a pet camera, Open [http://127.0.0.1:8080/index.html?camera=true](http://127.0.0.1:8080/index.html?camera=true)
+Camera side URL:
+http://localhost:8080/index.html?camera=true&audio=true
 
-As a viewer, Open [http://127.0.0.1:8080/index.html?camera=false](http://127.0.0.1:8080/index.html?camera=false)
-
-When you open the web page, you will be asked for the application id and secret.
-Please enter the ones you obtained from SkyWay.
 
 
 ### Deploy to GitHub Pages
@@ -63,11 +79,8 @@ You can invoke `Deploy to GitHub Pages` GitHub Actions manually.
 Push `Run workflow` of `Deploy to GitHub Pages` in GitHub Actions.
 You can access the web page on GitHub Pages.
 
-Camera side URL:
-https://komasayuki.github.io/pet-cam/index.html?camera=true&audio=true
-
 Viewer side URL:
-https://komasayuki.github.io/pet-cam/index.html?camera=false
+https://komasayuki.github.io/pet-cam-pi/index.html?camera=false
 
 
 ## Note

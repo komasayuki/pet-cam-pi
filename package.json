@@ -1,10 +1,10 @@
 {
-  "name": "pet-camera",
+  "name": "pet-camera-pi-web",
   "version": "1.0.0",
-  "description": "Internet pet camera using SkyWay",
+  "description": "Internet pet camera for Raspberry Pi using SkyWay",
   "author": "komasayuki",
   "scripts": {
-    "build": "parcel build ./src/index.html --public-url ./",
+    "build": "parcel build ./src/index.html --dist-dir ./server/public --public-url ./",
     "dev": "parcel ./src/index.html",
     "format": "eslint ./src --fix",
     "lint": "eslint ./src --fix"

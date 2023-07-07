@@ -77,7 +77,37 @@ const handleContext = async (context: SkyWayContext, isCamera:boolean, withAudio
       await publication.replaceStream(video);
     });
 
-  } else {
+    const subscribeAndAttach = async (publication) => {
+      if (publication.publisher.id === me.id) return;
+
+      const { stream } = await me.subscribe(publication.id);
+
+      switch (stream.contentType) {
+        case 'data':
+          {
+            stream.onData.add(async (data) => {
+              const obj = JSON.parse(data as string);
+              const angle:number = obj.angle;
+              if(angle === undefined) return;
+              console.log('set servo angle:' + angle);
+              await setServoAngle(angle);
+
+            });
+          }
+          break;
+      }
+    };
+
+    channel.publications.forEach(subscribeAndAttach);
+    channel.onStreamPublished.add((e) => subscribeAndAttach(e.publication));
+
+
+
+  } else { //viewer
+
+    const data = await SkyWayStreamFactory.createDataStream();
+    await me.publish(data);
+
     const subscribeAndAttach = async (publication) => {
       if (publication.publisher.id === me.id) return;
 
@@ -88,8 +118,36 @@ const handleContext = async (context: SkyWayContext, isCamera:boolean, withAudio
           {
             const elm = document.getElementById('video') as HTMLVideoElement;
             stream.attach(elm);
-            document.getElementById('status').innerText =
-              'Your lovely pet here!';
+            document.getElementById('status').innerHTML =
+              '<button>left</button><div>angle: 50%</div><button>right</button>';
+
+            const leftButton = document.createElement('button');
+            leftButton.innerText = 'left';
+
+            const span = document.createElement('span');
+            span.innerText = ` angle: ${servoAngle}% `;
+            span.id = 'angle';
+
+            const rightButton = document.createElement('button');
+            rightButton.innerText = 'right';
+
+            document.getElementById('status').innerHTML = '';
+            document.getElementById('status').appendChild(leftButton);
+            document.getElementById('status').appendChild(span);
+            document.getElementById('status').appendChild(rightButton);
+        
+            leftButton.addEventListener('click', async () => {
+              servoAngle = Math.max(0, servoAngle - 10);
+              document.getElementById('angle').innerText = ` angle: ${servoAngle}% `;
+              data.write(JSON.stringify({angle: servoAngle}));
+            });
+
+            rightButton.addEventListener('click', async () => {
+              servoAngle = Math.min(100, servoAngle + 10);
+              document.getElementById('angle').innerText = ` angle: ${servoAngle}% `;
+              data.write(JSON.stringify({angle: servoAngle}));
+            });
+
           }
           break;
         case 'audio':
@@ -163,8 +221,30 @@ const makeAuthToken = (appId:string, secret:string):string => {
   }).encode(secret);
 }
 
+const getServoAngle = async ():Promise<number> => {
+  return await fetch('/servo')
+    .then(response => response.json())
+    .then(data => {
+      return data.angle;
+    });
+};
+
+const setServoAngle =async (angle:number) => {
+  await fetch('/servo', {
+		method: 'post',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({angle:angle})
+	})
+}
+
+let servoAngle = 50;
 
 (async () => {
+
+  servoAngle = await getServoAngle();
+  console.log('current servo angle: ' + servoAngle);
 
   let appId = new URLSearchParams(window.location.search).get('appId');
   let secret = new URLSearchParams(window.location.search).get('secret');
